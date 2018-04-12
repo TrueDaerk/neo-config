@@ -4,19 +4,22 @@ namespace Neo\Commons\Config\HOCON;
 
 class HoconParsingObject {
    /**
-    * DO NOT USE BEFORE INITIALIZING AT LEAST ONE TYPE WITH CONSTRUCTOR.
+    * Use this value to make a new stdClass() value when using registerValue.
     *
     * @var object
     */
-   public static $EMPTY_OBJECT;
+   private static $EMPTY_OBJECT;
    /**
-    * DO NOT USE BEFORE INITIALIZING AT LEAST ONE TYPE WITH CONSTRUCTOR.
+    * Use this value to initialize a null value when using registerValue. null values are replaced with $EMPTY_OBJECT by default.
     *
     * @var object
     */
    public static $NULL_OBJECT;
    private $internalObject;
 
+   /**
+    * Initializes the values for $EMPTY_OBJECT and $NULL_OBJECT.
+    */
    private static function _initialize() {
       if (!isset(self::$EMPTY_OBJECT)) {
          self::$EMPTY_OBJECT = new \stdClass();
@@ -24,11 +27,21 @@ class HoconParsingObject {
       }
    }
 
+   /**
+    * HoconParsingObject constructor.
+    */
    public function __construct() {
       self::_initialize();
       $this->internalObject = new \stdClass();
    }
 
+   /**
+    * Registers a value for a key and created the parent object, if it does not exist or if it is not an object.
+    *
+    * @param string $key Key to create and initialize with the given value.
+    * @param mixed $value Any value to use for the key.
+    * The value ::$EMPTY_OBJECT will be initialized with new stdClass(), the value ::$NULL_OBJECT will be initialized with null.
+    */
    private function registerKey($key, $value = null) {
       $route = explode(".", $key);
       $lastKey = array_pop($route);
@@ -52,11 +65,26 @@ class HoconParsingObject {
       }
    }
 
+   /**
+    * Adds the given value as a key to the HoconParsingObject.
+    * When the given value is null, an empty object is created. To register null values, please use HoconParsingObject::$NULL_OBJECT.
+    *
+    * @param string $key Name of the key to register. Will create all parent objects.
+    * @param mixed $value Value to set for the key.
+    */
    public function registerValue($key, $value) {
       $this->registerKey($key, isset($value) ? $value : self::$EMPTY_OBJECT);
    }
 
+   /**
+    * Retrieves the object created with the registered keys.
+    *
+    * @return object Object created by registering keys.
+    */
    public function getObject() {
       return $this->internalObject;
    }
 }
+
+// Create an instance of HoconParsingObject, so that the values $EMPTY_OBJECT and $NULL_OBJECT are always initialized.
+new HoconParsingObject();
