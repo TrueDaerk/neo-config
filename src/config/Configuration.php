@@ -260,6 +260,35 @@ class Configuration {
       }
    }
 
+
+   /**
+    * Checks if the given key exists in this configuration.
+    *
+    * @param string $name Name of the key to test.
+    * @return bool True if the key exists (in configuration or in parent), false otherwise.
+    */
+   public function hasKey($name) {
+      $names = explode(".", $name);
+      if (count($names) === 0) {
+         return false;
+      }
+      $o = $this->values;
+      $hasKey = true;
+      foreach ($names as $nm) {
+         if (property_exists($o, $nm)) {
+            $o = $o->$nm;
+         } else {
+            $hasKey = false;
+            break;
+         }
+      }
+      // Now test the parent.
+      if (isset($this->parentConfiguration) && !$hasKey) {
+         $hasKey = $this->parentConfiguration->_getValue($name);
+      }
+      return $hasKey;
+   }
+
    /**
     * Parses the given string value by replacing configuration references.
     *
@@ -282,6 +311,10 @@ class Configuration {
                   $value = str_replace($replace, $object ? "true" : "false", $value);
                   continue;
                }
+            } elseif ($this->hasKey($name)) {
+               // If the key exists, just replace with empty string.
+               $value = str_replace($replace, "", $value);
+               continue;
             }
             throw new \RuntimeException("Configuration error, no value to replace $replace");
          }

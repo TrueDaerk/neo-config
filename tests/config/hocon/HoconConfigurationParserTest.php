@@ -18,12 +18,16 @@ Multiline 5 yearsMay", $config->getValue("value.multiline"));
       $this->assertSame("another string", $config->getValue("value.string"));
       $this->assertSame(5.89, $config->getValue("value.float"));
       $this->assertEquals([
-         "i hope", "distraction", 5.89, json_decode('{"shelter":"island"}')
+         "i hope",
+         "distraction",
+         5.89,
+         json_decode('{"shelter":"island"}')
       ], $config->getValue("vlu.try.list"));
 
       // Single config does not have this value.
       $this->assertNull($config->getValue("remember.me"));
       $this->assertNull($config->getValue("remember.mes"));
+
    }
 
    /**
@@ -37,9 +41,10 @@ Multiline 13May", $config->getValue("value.multiline"));
       $this->assertSame(5, $config->getValue("value.stronger"));
       $this->assertSame("another string", $config->getValue("value.string"));
       $this->assertSame(5.89, $config->getValue("value.float"));
-      $this->assertEquals([
-         "i hope", "distraction", 5.89, json_decode('{"shelter":"island"}')
-      ], $config->getValue("vlu.try.list"));
+      $this->assertEquals(["i hope", "distraction", 5.89, json_decode('{"shelter":"island"}')], $config->getValue("vlu.try.list"));
+
+      $this->assertNull($config->getValue("value.null"));
+      $this->assertSame("Null will be used as reference: ", $config->getValue("use.nullAsReference"));
 
       // Directory loaded, so value exists.
       $this->assertSame("Stella", $config->getValue("remember.me"));

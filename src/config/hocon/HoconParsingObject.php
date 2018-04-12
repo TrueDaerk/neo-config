@@ -3,12 +3,24 @@
 namespace Neo\Commons\Config\HOCON;
 
 class HoconParsingObject {
-   private static $EMPTY_OBJECT;
+   /**
+    * DO NOT USE BEFORE INITIALIZING AT LEAST ONE TYPE WITH CONSTRUCTOR.
+    *
+    * @var object
+    */
+   public static $EMPTY_OBJECT;
+   /**
+    * DO NOT USE BEFORE INITIALIZING AT LEAST ONE TYPE WITH CONSTRUCTOR.
+    *
+    * @var object
+    */
+   public static $NULL_OBJECT;
    private $internalObject;
 
    private static function _initialize() {
       if (!isset(self::$EMPTY_OBJECT)) {
          self::$EMPTY_OBJECT = new \stdClass();
+         self::$NULL_OBJECT = new \stdClass();
       }
    }
 
@@ -29,7 +41,10 @@ class HoconParsingObject {
             $curObj = $curObj->$key;
          }
       }
-      if ($value === self::$EMPTY_OBJECT) {
+      if ($value === self::$NULL_OBJECT) {
+         $curObj->$lastKey = null;
+
+      } elseif ($value === self::$EMPTY_OBJECT) {
          $curObj->$lastKey = new \stdClass();
 
       } else {

@@ -12,6 +12,7 @@ class HoconConfigurationParser {
       ARRAY_END = "]",
       KEY_SEPARATORS = [":", "="],
       COMMA = ",",
+      NULL_VALUE = "null",
       REFERENCE_INDICATOR = "\$",
       REFERENCE_START = "{",
       REFERENCE_END = "}",
@@ -216,7 +217,10 @@ class HoconConfigurationParser {
          $ch = $this->nextChar();
       } while (isset($ch) && !in_array($ch, self::UNQUOTED_STOP));
       $buffer = trim($buffer);
-      if (($filtered = filter_var($buffer, FILTER_VALIDATE_INT)) !== false) {
+      if ($buffer === self::NULL_VALUE) {
+         $buffer = HoconParsingObject::$NULL_OBJECT;
+
+      } elseif (($filtered = filter_var($buffer, FILTER_VALIDATE_INT)) !== false) {
          $buffer = $filtered;
 
       } elseif (($filtered = filter_var($buffer, FILTER_VALIDATE_FLOAT)) !== false) {
