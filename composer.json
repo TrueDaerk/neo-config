@@ -1,0 +1,32 @@
+{
+  "name": "neo/config",
+  "type": "library",
+  "description": "Configuration library with HOCON configuration parser.",
+  "keywords": [
+    "commons",
+    "hocon",
+    "configuration",
+    "config",
+    "php7",
+    "php5"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Gregory Geant",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=5.6.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "6.*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Neo\\Commons\\Config\\": "./src/config/",
+      "Neo\\Commons\\Config\\HOCON\\": "./src/config/hocon/"
+    }
+  }
+}

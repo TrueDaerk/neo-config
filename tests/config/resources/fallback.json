@@ -1,0 +1,12 @@
+{
+  "another": "file",
+  "better": "luck next time",
+  "try": "Try replace: ${simple}",
+  "overwrite": {
+    "know": "image"
+  },
+  "overwrite-object": {
+    "hello": "yes",
+    "hello_": "no"
+  }
+}

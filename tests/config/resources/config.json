@@ -1,0 +1,14 @@
+{
+  "simple": "json-config",
+  "parent": {
+    "with-list": ["a", "b", "c"],
+    "qubit": 1,
+    "substitute": "Should contain value of \"simple\": ${simple} and ${parent.qubit}"
+  },
+  "overwrite": true,
+  "overwrite-object": {
+    "hello": "yes",
+    "hello_": "yes",
+    "array": [4, "${parent.qubit}"]
+  }
+}
