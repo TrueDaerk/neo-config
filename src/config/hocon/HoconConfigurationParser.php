@@ -224,7 +224,7 @@ class HoconConfigurationParser {
          $value = $this->_parseString();
          $object->registerValue($keyPrefix, $value);
 
-      } elseif ($nextChar === self::REFERENCE_END) {
+      } elseif ($nextChar === self::REFERENCE_INDICATOR) {
          $value = $this->_parseReference();
          $object->registerValue($keyPrefix, $value);
 
@@ -255,7 +255,7 @@ class HoconConfigurationParser {
     * @return string|double|int Unquoted value.
     */
    private function _parseUnquotedValue() {
-      $stopUnquoted = self::UNQUOTED_STOP;
+      $stopUnquoted = array_merge(self::UNQUOTED_STOP, [self::OBJECT_END]);
       if ($this->lookoutForArrayEnd === true) {
          $stopUnquoted = array_merge($stopUnquoted, [self::ARRAY_END]);
       }

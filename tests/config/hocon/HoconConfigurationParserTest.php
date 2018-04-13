@@ -86,4 +86,18 @@ Multiline 13May", $config->getValue("value.multiline"));
          $this->assertEquals(", is not allowed at the start of an array", $e->getMessage());
       }
    }
+
+   /**
+    * @throws HoconFormatException
+    */
+   public function testEquivalents() {
+      $config1 = HoconConfigurationParser::parse('{ "foo" : { "a" : 42 }, "foo" : { "b" : 43 } }');
+      $config2 = HoconConfigurationParser::parse('{ "foo" : { "a" : 42, "b" : 43 } }');
+      $this->assertSame($config1->getValue("foo.a"), $config2->getValue("foo.a"));
+      $this->assertSame($config1->getValue("foo.b"), $config2->getValue("foo.b"));
+
+      $config1 = HoconConfigurationParser::parse('{ "foo" : { "a" : 42 }, "foo" : null, "foo" : { "a" : 43 } }');
+      $config2 = HoconConfigurationParser::parse('{ "foo" : { "a" : 43 } }');
+      $this->assertSame($config1->getValue("foo.a"), $config2->getValue("foo.a"));
+   }
 }
