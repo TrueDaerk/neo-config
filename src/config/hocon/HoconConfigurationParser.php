@@ -27,6 +27,7 @@ class HoconConfigurationParser {
    private $end;
    private $currentIndex;
    private $ignoreLastCharacter = false;
+   private $lookoutForArrayEnd = false;
 
    /**
     * HoconConfigurationParser constructor (private).
@@ -198,8 +199,19 @@ class HoconConfigurationParser {
          $object->registerValue($keyPrefix, $value);
       }
       $this->trimLeft();
-      if ($this->nextCharInvisible() === self::COMMA) {
+
+
+      $commaCount = 0;
+      while (($ch = $this->nextCharInvisible()) === self::COMMA) {
          $this->advance();
+         $this->trimLeft();
+         $commaCount++;
+      }
+      if ($commaCount > 1) {
+         throw new HoconFormatException("Only one " . self::COMMA . " is allowed after a value");
+
+      } elseif ($this->lookoutForArrayEnd && $ch === self::ARRAY_END) {
+         throw new HoconFormatException("Array value cannot end with " . self::COMMA);
       }
    }
 
@@ -209,13 +221,18 @@ class HoconConfigurationParser {
     * @return string|double|int Unquoted value.
     */
    private function _parseUnquotedValue() {
+      $stopUnquoted = self::UNQUOTED_STOP;
+      if ($this->lookoutForArrayEnd === true) {
+         $stopUnquoted = array_merge($stopUnquoted, [self::ARRAY_END]);
+      }
       $buffer = "";
       do {
          if (isset($ch)) {
             $buffer .= $ch;
          }
          $ch = $this->nextChar();
-      } while (isset($ch) && !in_array($ch, self::UNQUOTED_STOP));
+      } while (isset($ch) && !in_array($ch, $stopUnquoted));
+      $this->backtrack();
       $buffer = trim($buffer);
       if ($buffer === self::NULL_VALUE) {
          $buffer = HoconParsingObject::$NULL_OBJECT;
@@ -328,18 +345,25 @@ class HoconConfigurationParser {
          throw new HoconFormatException("Array must start with " . self::ARRAY_START);
       }
       $this->trimLeft();
-      if ($this->nextCharInvisible() === self::ARRAY_END) {
+      if (($ch = $this->nextCharInvisible()) === self::ARRAY_END) {
          // Empty array.
          $this->advance();
          return [];
+
+      } elseif ($ch === self::COMMA) {
+         throw new HoconFormatException(self::COMMA . " is not allowed at the start of an array");
       }
       $arrayValue = [];
       do {
          $object = new HoconParsingObject();
-         $this->_parseValue($object, 'filter');
+         $this->lookoutForArrayEnd = true;
+         $this->_parseValue($object, "filter");
          $arrayValue[] = $object->getObject()->filter;
-         $this->trimLeft();
-      } while($this->nextCharInvisible() !== self::ARRAY_END);
+         if ($this->nextCharInvisible() === self::COMMA) {
+            throw new HoconFormatException(self::COMMA . " not allowed at array end");
+         }
+      } while ($this->nextCharInvisible() !== self::ARRAY_END);
+
       if ($this->nextChar() !== self::ARRAY_END) {
          throw new HoconFormatException("Array must start with " . self::ARRAY_START);
       }
@@ -389,19 +413,6 @@ class HoconConfigurationParser {
          }
          $ch = $this->nextChar();
       } while (isset($ch) && $ch !== $char);
-      return $buffer;
-   }
-
-   /**
-    * Retrieves the string read to the next whitespace ($ch <= ' ').
-    *
-    * @return string Value to the next whitespace.
-    */
-   private function readToWhitespace() {
-      $buffer = "";
-      while ($this->isTrimmable($ch = $this->nextChar())) {
-         $buffer .= $ch;
-      }
       return $buffer;
    }
 
