@@ -16,6 +16,7 @@ class HoconConfigurationParser {
       REFERENCE_INDICATOR = "\$",
       REFERENCE_START = "{",
       REFERENCE_END = "}",
+      NEW_LINE = "\n",
       WHITESPACES = [
       // Space characters
       "\u{0009}",
@@ -243,7 +244,7 @@ class HoconConfigurationParser {
       if ($commaCount > 1) {
          throw new HoconFormatException("Only one " . self::COMMA . " is allowed after a value");
 
-      } elseif ($this->lookoutForArrayEnd && $ch === self::ARRAY_END) {
+      } elseif ($this->lookoutForArrayEnd && $commaCount > 0 && $ch === self::ARRAY_END) {
          throw new HoconFormatException("Array value cannot end with " . self::COMMA);
       }
    }
@@ -258,14 +259,7 @@ class HoconConfigurationParser {
       if ($this->lookoutForArrayEnd === true) {
          $stopUnquoted = array_merge($stopUnquoted, [self::ARRAY_END]);
       }
-      $buffer = "";
-      do {
-         if (isset($ch)) {
-            $buffer .= $ch;
-         }
-         $ch = $this->nextChar();
-      } while (isset($ch) && !in_array($ch, $stopUnquoted));
-      $this->backtrack();
+      $buffer = $this->readToOneOf($stopUnquoted);
       $buffer = trim($buffer);
       if ($buffer === self::NULL_VALUE) {
          $buffer = HoconParsingObject::$NULL_OBJECT;
@@ -416,16 +410,24 @@ class HoconConfigurationParser {
          $key = $this->readToChar('"');
       } else {
          $this->backtrack();
-         $key = "";
-         // Read to whitespace or to key-value separator.
-         do {
-            if (isset($ch)) {
-               $key .= $ch;
-            }
-            $ch = $this->nextChar();
-         } while (isset($ch) && !$this->isWhitespace($ch) && !in_array($ch, self::KEY_SEPARATORS));
+         $key = $this->readToOneOf(self::KEY_SEPARATORS, function ($ch) {
+            return $this->isWhitespace($ch);
+         });
       }
+      $this->trimLeft();
       $key = trim($key);
+      // Check next character again
+      $ch = $this->nextCharInvisible();
+      if (in_array($ch, self::KEY_SEPARATORS)) {
+         // Everything is fine, nothing to do.
+      } elseif ($this->isWhitespace($ch)) {
+         $this->trimLeft();
+         $okCharacter = [self::ARRAY_START, self::OBJECT_START];
+         if (!in_array($this->nextCharInvisible(), $okCharacter)) {
+            // Not allowed. Values other than object or array must be separated from the key with : or =
+            throw new HoconFormatException("Unexpected character after key, expected one of " . implode(",", $okCharacter));
+         }
+      }
       if (strpos($key, "\n") !== false || strpos($key, "\r")) {
          throw new HoconFormatException("Invalid key. Key may not contain new line character.");
       }
@@ -450,6 +452,46 @@ class HoconConfigurationParser {
    }
 
    /**
+    * Reads to one of the given characters. The stopping character should be returned from $this->nextChar(), since after a stop the parser backtracks.
+    *
+    * @param string|array $characters String containing the characters or an array of characters.
+    * @param callable $callback Optional callback function in addition to the characters to check.
+    * @return string Content read to one of the given characters.
+    */
+   private function readToOneOf($characters, $callback = null) {
+      if (is_string($characters)) {
+         $characters = str_split($characters);
+      } elseif (!is_array($characters)) {
+         throw new \InvalidArgumentException("Expected array or string as argument in readToOneOf");
+      }
+      if (count($characters) === 0) {
+         // Throw exception, will read to end.
+         throw new \InvalidArgumentException("Invalid characters given, empty array not allowed");
+      }
+      // Check for callable.
+      if (isset($callback) && !is_callable($callback)) {
+         throw new \InvalidArgumentException("Callback must be callable");
+
+      } elseif (!isset($callback)) {
+         $callback = function ($ch) {
+            return false;
+         };
+      }
+      $buffer = "";
+      do {
+         if (isset($ch)) {
+            $buffer .= $ch;
+         }
+         $ch = $this->nextChar();
+      } while (isset($ch) && $callback($ch) === false && !in_array($ch, $characters));
+      // Backtrack if the character was reached.
+      if (in_array($ch, $characters) || $callback($ch) === true) {
+         $this->backtrack();
+      }
+      return $buffer;
+   }
+
+   /**
     * Checks if the given character is a whitespace (definition at https://github.com/lightbend/config/blob/master/HOCON.md#whitespace).
     *
     * @param string $ch Character to check.
@@ -460,6 +502,16 @@ class HoconConfigurationParser {
          return in_array($ch, self::WHITESPACES);
       }
       return false;
+   }
+
+   /**
+    * Checks if the given character is a new line (definition at /home/geant/dev/php/neo-config/src/config/hocon/HoconConfigurationParser.php).
+    *
+    * @param string $ch Character to check.
+    * @return bool True if the character is a new line, false otherwise.
+    */
+   private function isNewline($ch) {
+      return $ch === self::NEW_LINE;
    }
 
    /**

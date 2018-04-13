@@ -66,21 +66,21 @@ Multiline 13May", $config->getValue("value.multiline"));
 
    public function testInvalidArrays() {
       try {
-         HoconConfigurationFactory::load(__DIR__ . "/resources/invalid-array-multiple-comma.conf");
+         HoconConfigurationFactory::load(__DIR__ . "/resources/errors/invalid-array-multiple-comma.conf");
          $this->fail("Expected exception.");
       } catch (HoconFormatException $e) {
          $this->assertEquals("Only one , is allowed after a value", $e->getMessage());
       }
 
       try {
-         HoconConfigurationFactory::load(__DIR__ . "/resources/invalid-array-comma-end.conf");
+         HoconConfigurationFactory::load(__DIR__ . "/resources/errors/invalid-array-comma-end.conf");
          $this->fail("Expected exception.");
       } catch (HoconFormatException $e) {
          $this->assertEquals("Array value cannot end with ,", $e->getMessage());
       }
 
       try {
-         HoconConfigurationFactory::load(__DIR__ . "/resources/invalid-array-comma-start.conf");
+         HoconConfigurationFactory::load(__DIR__ . "/resources/errors/invalid-array-comma-start.conf");
          $this->fail("Expected exception.");
       } catch (HoconFormatException $e) {
          $this->assertEquals(", is not allowed at the start of an array", $e->getMessage());
