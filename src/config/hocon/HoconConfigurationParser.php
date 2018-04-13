@@ -16,7 +16,40 @@ class HoconConfigurationParser {
       REFERENCE_INDICATOR = "\$",
       REFERENCE_START = "{",
       REFERENCE_END = "}",
-      WHITESPACE = " ",
+      WHITESPACES = [
+      // Space characters
+      "\u{0009}",
+      "\u{0020}",
+      "\u{00a0}",
+      "\u{1680}",
+      "\u{2000}",
+      "\u{2001}",
+      "\u{2002}",
+      "\u{2003}",
+      "\u{2004}",
+      "\u{2005}",
+      "\u{2006}",
+      "\u{2007}",
+      "\u{2008}",
+      "\u{2009}",
+      "\u{200a}",
+      "\u{202f}",
+      "\u{205f}",
+      "\u{3000}",
+      "\u{feff}",
+      // Line characters
+      "\u{2028}",
+      "\u{000a}",
+      "\u{000b}",
+      "\u{000c}",
+      "\u{000d}",
+      "\u{001c}",
+      "\u{001d}",
+      "\u{001e}",
+      "\u{001f}",
+      // Paragraph characters
+      "\u{2029}"
+   ],
       MULTILINE_QUOTES = '"""',
       UNQUOTED_STOP = ["\n", "\r", ","],
       QUOTE = '"';
@@ -390,7 +423,7 @@ class HoconConfigurationParser {
                $key .= $ch;
             }
             $ch = $this->nextChar();
-         } while (isset($ch) && !$this->isTrimmable($ch) && !in_array($ch, self::KEY_SEPARATORS));
+         } while (isset($ch) && !$this->isWhitespace($ch) && !in_array($ch, self::KEY_SEPARATORS));
       }
       $key = trim($key);
       if (strpos($key, "\n") !== false || strpos($key, "\r")) {
@@ -417,14 +450,14 @@ class HoconConfigurationParser {
    }
 
    /**
-    * Checks if the given character is trimmable (<= ' ').
+    * Checks if the given character is a whitespace (definition at https://github.com/lightbend/config/blob/master/HOCON.md#whitespace).
     *
     * @param string $ch Character to check.
-    * @return bool True if the character is trimmable, false otherwise.
+    * @return bool True if the character is a whitespace, false otherwise.
     */
-   private function isTrimmable($ch) {
+   private function isWhitespace($ch) {
       if (isset($ch)) {
-         return $ch <= self::WHITESPACE;
+         return in_array($ch, self::WHITESPACES);
       }
       return false;
    }
@@ -487,7 +520,7 @@ class HoconConfigurationParser {
     * Trims all values that are seen as "blank values" from the left of the current starting position.
     */
    private function trimLeft() {
-      while ($this->currentIndex < $this->end && $this->isTrimmable(mb_substr($this->originalContent, $this->currentIndex, 1))) {
+      while ($this->currentIndex < $this->end && $this->isWhitespace(mb_substr($this->originalContent, $this->currentIndex, 1))) {
          $this->currentIndex++;
       }
    }
@@ -498,7 +531,7 @@ class HoconConfigurationParser {
    private function trimRight() {
       for (
          $this->end = mb_strlen($this->originalContent);
-         $this->end > 0 && $this->isTrimmable(mb_substr($this->originalContent, $this->end - 1, 1));
+         $this->end > 0 && $this->isWhitespace(mb_substr($this->originalContent, $this->end - 1, 1));
          $this->end--
       ) {
          // Nothing to do, just updates end.
