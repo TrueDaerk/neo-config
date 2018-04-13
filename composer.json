@@ -1,5 +1,5 @@
 {
-  "name": "truedaerk/neo-config",
+  "name": "neo/config",
   "type": "library",
   "description": "Configuration library with HOCON configuration parser.",
   "keywords": [
