@@ -3,6 +3,7 @@
 namespace Neo\Commons\Config\HOCON;
 
 use Neo\Commons\Config\Configuration;
+use Neo\Commons\Config\HOCON\Type\ConfigValue;
 
 class HoconConfigurationParser {
    /* Constants */
@@ -83,6 +84,10 @@ class HoconConfigurationParser {
    private $currentIndex;
    private $ignoreLastCharacter = false;
    private $lookoutForArrayEnd = false;
+   /**
+    * @var HoconConfiguration
+    */
+   private $configuration;
 
    /**
     * HoconConfigurationParser constructor (private).
@@ -91,6 +96,7 @@ class HoconConfigurationParser {
     */
    private function __construct($content) {
       $this->setContent($content);
+      $this->configuration = new HoconConfiguration();
    }
 
    /**
@@ -305,6 +311,7 @@ class HoconConfigurationParser {
       if (!$multiline) {
          $this->advance();
       }
+      $configValue = new ConfigValue($this->configuration);
       $buffer = "";
       while (true) {
          $quickValue = $this->readToSequence($multiline ? self::MULTILINE_QUOTES : self::QUOTE);

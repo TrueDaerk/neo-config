@@ -27,7 +27,8 @@
   "autoload": {
     "psr-4": {
       "Neo\\Commons\\Config\\": "./src/config/",
-      "Neo\\Commons\\Config\\HOCON\\": "./src/config/hocon/"
+      "Neo\\Commons\\Config\\HOCON\\": "./src/config/hocon/",
+      "Neo\\Commons\\Config\\HOCON\\Type\\": "./src/config/hocon/type"
     }
   }
 }
