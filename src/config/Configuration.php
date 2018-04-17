@@ -9,15 +9,15 @@ class Configuration {
    /**
     * @var object
     */
-   private $values;
+   protected $values;
    /**
     * @var Configuration
     */
-   private $parentConfiguration;
+   protected $parentConfiguration;
    /**
     * @var array
     */
-   private $keys = [];
+   protected $keys = [];
 
    /**
     * Creates a configuration object with the given configuration.
@@ -25,7 +25,11 @@ class Configuration {
     * @param string|object|array $configuration Direct object configuration, associative array or a string json value.
     */
    public function __construct($configuration) {
-      if (is_string($configuration)) {
+      if ($this->whoAmI() !== __CLASS__) {
+         // Is inherited class, so
+         return;
+
+      } elseif (is_string($configuration)) {
          // Tries to read the string as a json value.
          $configuration = @json_decode($configuration);
       } elseif (is_array($configuration)) {
@@ -64,7 +68,7 @@ class Configuration {
     * @param object $new New configuration data.
     * @return object New configuration object.
     */
-   private function overwriteValues($old, $new) {
+   protected function overwriteValues($old, $new) {
       foreach ($new as $key => $value) {
          if (is_object($value) && property_exists($old, $key) && is_object($old->$key)) {
             $old->$key = $this->overwriteValues($old->$key, $value);
@@ -209,7 +213,7 @@ class Configuration {
     * @param string $name Name of the configuration value to retrieve.
     * @return mixed Value from the configuration.
     */
-   private function _getValue($name) {
+   protected function _getValue($name) {
       if (!empty($name)) {
          $names = explode(".", $name);
          $o = $this->values;
@@ -242,7 +246,7 @@ class Configuration {
     *
     * @param array|object|string $value Value to transform.
     */
-   private function _transformArrayValues(&$value) {
+   protected function _transformArrayValues(&$value) {
       if (is_array($value) || is_object($value)) {
          foreach ($value as $key => $v) {
             if (is_object($v) || is_array($v) || is_string($v)) {
@@ -295,7 +299,7 @@ class Configuration {
     * @param string $value String value to replace configuration references.
     * @return string Parsed configuration value.
     */
-   private function _parseStringValue($value) {
+   protected function _parseStringValue($value) {
       if (is_string($value)) {
          $count = @preg_match_all(self::MATCH_CONFIG_VALUES, $value, $matches) ?: 0;
          while ($count-- > 0) {
@@ -339,5 +343,12 @@ class Configuration {
          $this->keys = array_keys((array)$this->values);
       }
       return $this->keys;
+   }
+
+   /**
+    * @return string Called class
+    */
+   protected function whoAmI() {
+      return get_called_class();
    }
 }

@@ -13,8 +13,8 @@ class HoconConfigurationParser {
       KEY_SEPARATORS = [":", "="],
       COMMA = ",",
       NULL_VALUE = "null",
-      REFERENCE_INDICATOR = "\$",
-      REFERENCE_START = "{",
+      REFERENCE_INDICATOR = "\${",
+      REFERENCE_START = "$",
       REFERENCE_END = "}",
       NEW_LINE = "\n",
       WHITESPACES = [
@@ -51,8 +51,29 @@ class HoconConfigurationParser {
       // Paragraph characters
       "\u{2029}"
    ],
-      MULTILINE_QUOTES = '"""',
+      UNQUOTED_INVALID = [
+      '$',
+      '"',
+      "{",
+      "}",
+      "[",
+      "]",
+      ":",
+      "=",
+      ",",
+      "+",
+      "#",
+      "`",
+      "^",
+      "?",
+      "!",
+      "@",
+      "*",
+      "&",
+      "\\"
+   ],
       UNQUOTED_STOP = ["\n", "\r", ","],
+      MULTILINE_QUOTES = '"""',
       QUOTE = '"';
 
    /* Parser fields */
@@ -224,7 +245,7 @@ class HoconConfigurationParser {
          $value = $this->_parseString();
          $object->registerValue($keyPrefix, $value);
 
-      } elseif ($nextChar === self::REFERENCE_INDICATOR) {
+      } elseif ($nextChar === self::REFERENCE_START) {
          $value = $this->_parseReference();
          $object->registerValue($keyPrefix, $value);
 
@@ -280,48 +301,27 @@ class HoconConfigurationParser {
     * @throws HoconFormatException
     */
    private function _parseString() {
-      $multiline = false;
-      $c1 = $this->nextChar();
-      $c2 = $this->nextChar();
-      $c3 = $this->nextChar();
-      if ($c1 === self::QUOTE && $c2 === $c1 && $c3 === $c1) {
-         $multiline = true;
-      } else {
-         $this->backtrack();
-         $this->backtrack();
-         if ($c1 !== self::QUOTE) {
-            $this->backtrack();
-         }
+      $multiline = $this->testSequence(self::MULTILINE_QUOTES);
+      if (!$multiline) {
+         $this->advance();
       }
       $buffer = "";
       while (true) {
-         $quickValue = $this->readToChar('"');
+         $quickValue = $this->readToSequence($multiline ? self::MULTILINE_QUOTES : self::QUOTE);
          $buffer .= $quickValue;
          if ($multiline) {
-            // If the next character is null, the multiline value ended prematurely.
-            $ch2 = $this->nextCharInvisible();
-            if (!isset($ch2)) {
+            $ch2 = $this->previousCharInvisible();
+            if ($ch2 !== mb_substr(self::MULTILINE_QUOTES, -1)) {
                throw new HoconFormatException("Multiline string ended prematurely");
             }
-            // Check next 2 characters. If they are both '"', break, otherwise continue.
-            $this->advance();
-            $ch3 = $this->nextChar();
-            if ($ch2 === self::QUOTE && $ch3 === self::QUOTE) {
-               // Test for reference
-               $this->trimLeft();
-               $ch = $this->nextCharInvisible();
-               if ($ch === self::REFERENCE_INDICATOR) {
-                  $buffer .= $this->_parseReference();
-               }
-               // Multiline finished, so break.
-               break;
+            $this->trimLeft();
+            // Parse reference, if it exists.
+            if ($this->testSequence(self::REFERENCE_INDICATOR, true)) {
+               $buffer .= $this->_parseReference();
             }
-            // Backtrack twice for ch2 and ch3
-            $this->backtrack();
-            $this->backtrack();
 
          } elseif (strpos($buffer, "\n") !== false || strpos($buffer, "\r") !== false) {
-            throw new HoconFormatException("Multiline string detected. Use '\"\"\"' for multiline strings");
+            throw new HoconFormatException("Multiline string detected. Use '" . self::MULTILINE_QUOTES . "' for multiline strings");
          }
          break;
       }
@@ -335,15 +335,12 @@ class HoconConfigurationParser {
     * @throws HoconFormatException
     */
    public function _parseReference() {
-      if ($this->nextChar() !== self::REFERENCE_INDICATOR) {
+      if (!$this->testSequence(self::REFERENCE_INDICATOR)) {
          throw new HoconFormatException("Config references must start with " . self::REFERENCE_INDICATOR);
       }
       $this->trimLeft();
-      if ($this->nextChar() !== self::REFERENCE_START) {
-         throw new HoconFormatException("Config references " . self::REFERENCE_INDICATOR . " must be followed by " . self::REFERENCE_START);
-      }
 
-      $referenceValue = self::REFERENCE_INDICATOR . self::REFERENCE_START . $this->readToChar(self::REFERENCE_END) . self::REFERENCE_END;
+      $referenceValue = self::REFERENCE_INDICATOR . $this->readToChar(self::REFERENCE_END) . self::REFERENCE_END;
       $this->backtrack();
 
       $this->trimLeft();
@@ -352,10 +349,10 @@ class HoconConfigurationParser {
       }
       $this->trimLeft();
       // Test for string or concatenated config reference
-      $ch = $this->nextCharInvisible();
-      if ($ch === self::REFERENCE_INDICATOR) {
+      if ($this->testSequence(self::REFERENCE_INDICATOR, true)) {
          $referenceValue .= $this->_parseReference();
-      } elseif ($ch === self::QUOTE) {
+
+      } elseif ($this->testSequence(self::MULTILINE_QUOTES, true)) {
          $referenceValue .= $this->_parseString();
       }
       return $referenceValue;
@@ -491,6 +488,67 @@ class HoconConfigurationParser {
       return $buffer;
    }
 
+   private function readToSequence($sequence) {
+      if (!is_string($sequence)) {
+         throw new \InvalidArgumentException("Sequence must be a string.");
+
+      } elseif (($length = mb_strlen($sequence)) <= 0) {
+         throw new \InvalidArgumentException("Sequence cannot be empty.");
+
+      }
+      $buffer = "";
+      $backtrackCount = 0;
+      $continue = true;
+      $firstCharacter = mb_substr($sequence, 0, 1);
+      do {
+         $buffer .= $this->readToChar($firstCharacter);
+         if ($this->previousCharInvisible() === $firstCharacter) {
+            $charIndex = 1;
+            while ($charIndex < $length && $this->nextChar() === mb_substr($sequence, $charIndex, 1)) {
+               $charIndex++;
+               $backtrackCount++;
+            }
+            if ($backtrackCount < $length - 1) {
+               while ($backtrackCount-- > 0) {
+                  $this->backtrack();
+               }
+               continue;
+            }
+            $continue = false;
+         } else {
+            // Stop, because it read through the end.
+            $this->advance();
+            $continue = false;
+         }
+      } while ($continue);
+      return $buffer;
+   }
+
+   private function testSequence($sequence, $backtrack = false) {
+      if (!is_string($sequence)) {
+         throw new \InvalidArgumentException("Sequence must be a string");
+
+      } elseif (($length = mb_strlen($sequence)) <= 0) {
+         throw new \InvalidArgumentException("Sequence cannot be empty.");
+
+      }
+      $backtrackCount = 0;
+      $ok = true;
+      for ($i = 0; $i < $length; $i++) {
+         $backtrackCount++;
+         if (mb_substr($sequence, $i, 1) !== $this->nextChar()) {
+            $ok = false;
+            break;
+         }
+      }
+      if ($backtrack === true || !$ok) {
+         while ($backtrackCount-- > 0) {
+            $this->backtrack();
+         }
+      }
+      return $ok;
+   }
+
    /**
     * Checks if the given character is a whitespace (definition at https://github.com/lightbend/config/blob/master/HOCON.md#whitespace).
     *
@@ -522,6 +580,16 @@ class HoconConfigurationParser {
    private function previousChar() {
       $this->backtrack();
       return $this->nextCharInvisible();
+   }
+
+   /**
+    * Retrieves the previous character of the iteration without moving the current index.
+    *
+    * @return null|string Previous character of the iteration.
+    */
+   private function previousCharInvisible() {
+      $this->backtrack();
+      return $this->nextChar();
    }
 
    /**

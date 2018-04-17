@@ -23,6 +23,7 @@ Multiline 5 yearsMay", $config->getValue("value.multiline"));
          5.89,
          json_decode('{"shelter":"island"}')
       ], $config->getValue("vlu.try.list"));
+      $this->assertEquals("distraction", $config->getValue("vlu.try.list")[1]);
 
       // Single config does not have this value.
       $this->assertNull($config->getValue("remember.me"));
