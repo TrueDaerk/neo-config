@@ -24,7 +24,7 @@ class Configuration {
     *
     * @param string|object|array $configuration Direct object configuration, associative array or a string json value.
     */
-   public function __construct($configuration) {
+   public function __construct($configuration = null) {
       if ($this->whoAmI() !== __CLASS__) {
          // Is inherited class, so
          return;

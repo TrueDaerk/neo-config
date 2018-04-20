@@ -29,6 +29,8 @@ Multiline 5 yearsMay", $config->getValue("value.multiline"));
       $this->assertNull($config->getValue("remember.me"));
       $this->assertNull($config->getValue("remember.mes"));
 
+      // Test the array in an array
+      $this->assertEquals(["first value", [1, 2, 3]], $config->getValue("array.in-array"));
    }
 
    /**

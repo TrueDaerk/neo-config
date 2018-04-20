@@ -84,10 +84,6 @@ class HoconConfigurationParser {
    private $currentIndex;
    private $ignoreLastCharacter = false;
    private $lookoutForArrayEnd = false;
-   /**
-    * @var HoconConfiguration
-    */
-   private $configuration;
 
    /**
     * HoconConfigurationParser constructor (private).
@@ -96,7 +92,6 @@ class HoconConfigurationParser {
     */
    private function __construct($content) {
       $this->setContent($content);
-      $this->configuration = new HoconConfiguration();
    }
 
    /**
@@ -113,7 +108,7 @@ class HoconConfigurationParser {
       $parser = new HoconConfigurationParser($content);
       $object = $parser->parseContent();
       if (isset($object)) {
-         return new Configuration($object->getObject());
+         return $object;
       }
       throw new HoconFormatException("Configuration could not be parsed, retrieved object is null");
    }
@@ -139,7 +134,7 @@ class HoconConfigurationParser {
     * @throws HoconFormatException
     */
    private function parseContent() {
-      $object = new HoconParsingObject();
+      $object = new HoconParsingObject("");
       $this->currentIndex = $this->end;
       $end = $this->previousChar();
       $this->currentIndex = $this->start;
@@ -245,18 +240,17 @@ class HoconConfigurationParser {
 
       } elseif ($nextChar === self::ARRAY_START) {
          $value = $this->_parseArray();
-         $object->registerValue($keyPrefix, $value);
 
       } elseif ($nextChar === self::QUOTE) {
-         $value = $this->_parseString();
-         $object->registerValue($keyPrefix, $value);
+         $value = $this->_parseString($object, $keyPrefix);
 
       } elseif ($nextChar === self::REFERENCE_START) {
-         $value = $this->_parseReference();
-         $object->registerValue($keyPrefix, $value);
+         $value = $this->_parseReference($object, $keyPrefix);
 
       } else {
          $value = $this->_parseUnquotedValue();
+      }
+      if (isset($value)) {
          $object->registerValue($keyPrefix, $value);
       }
       $this->trimLeft();
@@ -303,19 +297,22 @@ class HoconConfigurationParser {
    /**
     * Parses a string or multiline string, depending on the next characters.
     *
-    * @return string String parsed from the content.
+    * @param HoconParsingObject $object Object to use to retrieve already defined references.
+    * @param string $key Key to register the value.
+    * @return ConfigValue ConfigValue representing the string content and possible reference concatenation.
     * @throws HoconFormatException
     */
-   private function _parseString() {
+   private function _parseString($object, $key) {
       $multiline = $this->testSequence(self::MULTILINE_QUOTES);
       if (!$multiline) {
          $this->advance();
       }
-      $configValue = new ConfigValue($this->configuration);
+      $configValue = new ConfigValue($object, $key);
       $buffer = "";
       while (true) {
          $quickValue = $this->readToSequence($multiline ? self::MULTILINE_QUOTES : self::QUOTE);
          $buffer .= $quickValue;
+         $configValue->addValue($buffer);
          if ($multiline) {
             $ch2 = $this->previousCharInvisible();
             if ($ch2 !== mb_substr(self::MULTILINE_QUOTES, -1)) {
@@ -324,7 +321,10 @@ class HoconConfigurationParser {
             $this->trimLeft();
             // Parse reference, if it exists.
             if ($this->testSequence(self::REFERENCE_INDICATOR, true)) {
-               $buffer .= $this->_parseReference();
+               $configValue->merge($this->_parseReference($object, $key));
+
+            } elseif ($this->testSequence(self::MULTILINE_QUOTES, true)) {
+               $configValue->merge($this->_parseString($object, $key));
             }
 
          } elseif (strpos($buffer, "\n") !== false || strpos($buffer, "\r") !== false) {
@@ -332,22 +332,24 @@ class HoconConfigurationParser {
          }
          break;
       }
-      return $buffer;
+      return $configValue;
    }
 
    /**
     * Parses a reference to the inner configuration (${xxx} values).
     *
-    * @return string Composed string containing the reference value and strings directly after it.
+    * @param HoconParsingObject $object Object to use to retrieve already defined references.
+    * @param string $key Path to the reference value.
+    * @return ConfigValue Configuration value containing all strings and references directly after this reference.
     * @throws HoconFormatException
     */
-   public function _parseReference() {
+   public function _parseReference($object, $key) {
       if (!$this->testSequence(self::REFERENCE_INDICATOR)) {
          throw new HoconFormatException("Config references must start with " . self::REFERENCE_INDICATOR);
       }
       $this->trimLeft();
 
-      $referenceValue = self::REFERENCE_INDICATOR . $this->readToChar(self::REFERENCE_END) . self::REFERENCE_END;
+      $referenceKey = $this->readToChar(self::REFERENCE_END);
       $this->backtrack();
 
       $this->trimLeft();
@@ -355,14 +357,16 @@ class HoconConfigurationParser {
          throw new HoconFormatException("Config references must end with " . self::REFERENCE_END);
       }
       $this->trimLeft();
+      $value = new ConfigValue($object, $key);
+      $value->addValue($referenceKey, true);
       // Test for string or concatenated config reference
       if ($this->testSequence(self::REFERENCE_INDICATOR, true)) {
-         $referenceValue .= $this->_parseReference();
+         $value->merge($this->_parseReference($object, $key));
 
       } elseif ($this->testSequence(self::MULTILINE_QUOTES, true)) {
-         $referenceValue .= $this->_parseString();
+         $value->merge($this->_parseString($object, key));
       }
-      return $referenceValue;
+      return $value;
    }
 
    /**
@@ -386,7 +390,7 @@ class HoconConfigurationParser {
       }
       $arrayValue = [];
       do {
-         $object = new HoconParsingObject();
+         $object = new HoconParsingObject("");
          $this->lookoutForArrayEnd = true;
          $this->_parseValue($object, "filter");
          $arrayValue[] = $object->getObject()->filter;
