@@ -34,6 +34,15 @@ Multiline 5 yearsMay", $config->getValue("value.multiline"));
    }
 
    /**
+    * @throws HoconFormatException
+    */
+   public function testComments() {
+      $config = HoconConfigurationFactory::load(__DIR__ . "/resources/application.conf");
+      // Test comment values
+      $this->assertEquals("This is a value", $config->getValue("comment-value"));
+   }
+
+   /**
     *
     * @throws HoconFormatException
     */

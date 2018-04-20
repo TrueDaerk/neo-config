@@ -17,7 +17,9 @@ class HoconConfigurationParser {
       REFERENCE_INDICATOR = "\${",
       REFERENCE_START = "$",
       REFERENCE_END = "}",
+      COMMENT = "//",
       NEW_LINE = "\n",
+      NEW_LINE_CHARACTERS = "\n\r",
       WHITESPACES = [
       // Space characters
       "\u{0009}",
@@ -206,6 +208,8 @@ class HoconConfigurationParser {
     * @throws HoconFormatException
     */
    private function _parseField($object, $keyPrefix = "") {
+      $this->trimLeft();
+      $this->skipComments();
       $key = $this->_parseKey();
       $dotPos = strpos($key, ".");
       if ($dotPos === 0) {
@@ -234,6 +238,7 @@ class HoconConfigurationParser {
          $this->backtrack();
       }
       $this->trimLeft();
+      $this->skipComments();
       $nextChar = $this->nextCharInvisible();
       if ($nextChar === self::OBJECT_START) {
          $this->_parseObject($object, $keyPrefix);
@@ -281,6 +286,10 @@ class HoconConfigurationParser {
          $stopUnquoted = array_merge($stopUnquoted, [self::ARRAY_END]);
       }
       $buffer = $this->readToOneOf($stopUnquoted);
+      if (($position = mb_strpos($buffer, "//")) !== false) {
+         // Remove comment part from the unquoted value.
+         $buffer = mb_substr($buffer, 0, $position);
+      }
       $buffer = trim($buffer);
       if ($buffer === self::NULL_VALUE) {
          $buffer = HoconParsingObject::$NULL_OBJECT;
@@ -674,5 +683,16 @@ class HoconConfigurationParser {
     */
    public function getContent() {
       return $this->originalContent;
+   }
+
+   /**
+    * Skips all following comments
+    */
+   private function skipComments() {
+      // Skip comment lines
+      while ($this->testSequence(self::COMMENT)) {
+         $this->readToOneOf(self::NEW_LINE_CHARACTERS);
+         $this->trimLeft();
+      }
    }
 }
