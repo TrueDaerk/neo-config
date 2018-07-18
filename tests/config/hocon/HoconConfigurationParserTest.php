@@ -122,4 +122,12 @@ Multiline 13May", $config->getValue("value.multiline"));
       $this->assertSame($config1->getValue("foo.a"), $config3->getValue("foo.a"));
       $this->assertSame($config1->getValue("foo.a"), $config4->getValue("foo.a"));
    }
+
+   /**
+    * @throws HoconFormatException
+    */
+   public function testIssue1() {
+      $config = HoconConfigurationParser::parse(file_get_contents(__DIR__ . "/resources/issues/1.conf"));
+      $this->assertEquals(123, $config->getValue("myKey.value"));
+   }
 }

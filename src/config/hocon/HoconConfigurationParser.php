@@ -428,7 +428,7 @@ class HoconConfigurationParser {
       } else {
          $this->backtrack();
          $key = $this->readToOneOf(self::KEY_SEPARATORS, function ($ch) {
-            return $this->isWhitespace($ch);
+            return $this->isWhitespace($ch) || in_array($ch, [self::OBJECT_START]);
          });
       }
       $this->trimLeft();
